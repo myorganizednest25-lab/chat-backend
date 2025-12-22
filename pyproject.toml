@@ -1,0 +1,43 @@
+[project]
+name = "chat-backend"
+version = "0.1.0"
+description = "Chat backend with retrieval over entity documents"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+    "psycopg[binary]>=3.1.10",
+    "structlog>=24.1.0",
+    "httpx>=0.25.2",
+    "openai>=1.12.0",
+    "python-dotenv>=1.0.1",
+    "rapidfuzz>=3.6.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.5",
+    "pytest-cov>=4.1.0",
+    "requests>=2.31.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.5",
+    "pytest-cov>=4.1.0",
+    "requests>=2.31.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
