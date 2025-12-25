@@ -16,8 +16,13 @@ from app.db.models import Base
 # within the .ini file in use.
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Configure logging only if a config file with logging sections exists.
+try:
+    if config.config_file_name is not None:
+        fileConfig(config.config_file_name, disable_existing_loggers=False)
+except KeyError:
+    # Allow migrations to run even if logging sections are missing.
+    pass
 
 target_metadata = Base.metadata
 

@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_ENV_FILE = ROOT_DIR / ".env"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=str(DEFAULT_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     app_name: str = "chat-backend"
     environment: str = Field(default="development")
@@ -32,6 +41,10 @@ class Settings(BaseSettings):
 
     # Rate limiting stub
     rate_limit_per_minute: int = 60
+
+    # Entity resolution
+    entity_resolution_mode: str = Field(default="fuzzy", description="fuzzy|llm")
+    entity_resolution_candidate_limit: int = 50
 
 
 @lru_cache

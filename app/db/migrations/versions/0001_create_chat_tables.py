@@ -68,10 +68,7 @@ def upgrade() -> None:
     )
 
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_entity_documents_entity_id ON entity_documents (entity_id);"
-    )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_entities_entity_type_city_state ON entities (entity_type, city, state);"
+        "CREATE INDEX IF NOT EXISTS ix_raw_documents_entity_id ON raw_documents (entity_id);"
     )
 
 
@@ -82,6 +79,5 @@ def downgrade() -> None:
     op.drop_index("ix_chat_messages_session_id", table_name="chat_messages")
     op.drop_table("chat_messages")
     op.drop_table("chat_sessions")
-    op.execute("DROP INDEX IF EXISTS ix_entity_documents_entity_id;")
-    op.execute("DROP INDEX IF EXISTS ix_entities_entity_type_city_state;")
+    op.execute("DROP INDEX IF EXISTS ix_raw_documents_entity_id;")
     op.execute("DROP FUNCTION IF EXISTS set_updated_at;")

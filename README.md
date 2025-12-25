@@ -6,7 +6,7 @@ FastAPI backend that answers parent questions using retrieval over entity-specif
 - Swappable LLM providers (OpenAI + mock) with configurable model/temperature.
 - Persistence for chat sessions/messages/state plus retrieval metadata.
 - Entity resolution with fuzzy matching and city/state filters.
-- Retrieval of all documents for an entity (stored in Supabase Postgres) with citation formatting.
+- Retrieval of all documents for an entity (stored as raw documents in Supabase Postgres) with citation formatting.
 - Structured logging with request ids, CORS config, and in-memory rate limiting stub (TODO: Redis).
 
 ## Quickstart
@@ -41,8 +41,11 @@ Environment variables (pydantic settings):
 - `OPENAI_API_KEY` (required for `openai` provider)
 - `CORS_ORIGINS` (comma-separated)
 - `HISTORY_WINDOW`, `MAX_DOCUMENTS`, `RATE_LIMIT_PER_MINUTE`
+- `ENTITY_RESOLUTION_MODE` (`fuzzy`|`llm`, default `fuzzy`) and `ENTITY_RESOLUTION_CANDIDATE_LIMIT`
 
-Entities and raw documents already live in Supabase Postgres tables (`entities`, `entity_documents`); migrations only add indexes and chat tables.
+Entities and raw documents already live in Supabase Postgres tables (`entities`, `raw_documents`); migrations only add indexes and chat tables.
+
+`.env` is loaded from the project root by default (`<repo>/.env`). If you run the server from elsewhere, make sure that file exists or export the variables in your shell.
 
 ## Project Structure
 - `app/main.py` – FastAPI app + middleware

@@ -65,7 +65,7 @@ class ChatMessage(Base):
         default=datetime.utcnow,
         server_default=text("now()"),
     )
-    metadata = Column(JSON, nullable=False, server_default=text("'{}'"))
+    meta = Column("metadata", JSON, nullable=False, default=dict, server_default=text("'{}'"))
 
     session = relationship("ChatSession", back_populates="messages")
 
@@ -78,7 +78,7 @@ class SessionState(Base):
     session_id = Column(
         PG_UUID(as_uuid=True), ForeignKey("chat_sessions.id"), primary_key=True
     )
-    state = Column(JSON, nullable=False, server_default=text("'{}'"))
+    state = Column(JSON, nullable=False, default=dict, server_default=text("'{}'"))
     updated_at = Column(
         TIMESTAMP(timezone=True),
         nullable=False,
@@ -95,26 +95,47 @@ class Entity(Base):
 
     id = uuid_column()
     name = Column(String, nullable=False)
-    entity_type = Column(String, nullable=True)
+    entity_type = Column("type", String, key="entity_type", nullable=False)
     city = Column(String, nullable=True)
     state = Column(String, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=True)
-
-    __table_args__ = (
-        Index("ix_entities_entity_type_city_state", "entity_type", "city", "state"),
+    url = Column(String, nullable=True)
+    meta = Column("metadata", JSON, nullable=False, default=dict, server_default=text("'{}'"))
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=text("now()"),
+        onupdate=datetime.utcnow,
     )
+    slug = Column(String, nullable=False)
 
 
-class EntityDocument(Base):
-    __tablename__ = "entity_documents"
+class RawDocument(Base):
+    __tablename__ = "raw_documents"
 
     id = uuid_column()
     entity_id = Column(PG_UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
-    title = Column(String, nullable=False)
+    title = Column(String, nullable=True)
     source_url = Column(String, nullable=True)
-    content = Column(Text, nullable=False)
-    fetched_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    source_type = Column(String, nullable=False)
+    clean_text = Column(Text, nullable=False)
+    fetched_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    checksum_sha256 = Column(String, nullable=True)
+    meta = Column("metadata", JSON, nullable=False, default=dict, server_default=text("'{}'"))
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=text("now()"),
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=text("now()"),
+        onupdate=datetime.utcnow,
+    )
 
     entity = relationship("Entity")
 
-    __table_args__ = (Index("ix_entity_documents_entity_id", "entity_id"),)
+    __table_args__ = (Index("ix_raw_documents_entity_id", "entity_id"),)

@@ -15,9 +15,9 @@ class MessageSchema(BaseModel):
     role: str
     content: str
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] = Field(default_factory=dict, alias="meta")
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class SessionSchema(BaseModel):

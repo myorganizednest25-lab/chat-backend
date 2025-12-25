@@ -19,7 +19,7 @@ from app.schemas.chat import (
     SessionCreateResponse,
     SessionSchema,
 )
-from app.services.entity_resolver import EntityResolver
+from app.services.entity_resolver import EntityResolver, LLMEntityResolver
 from app.services.orchestrator import ChatOrchestrator
 from app.services.retrieval import RetrievalService
 
@@ -65,10 +65,19 @@ def get_llm_client():
 
 
 def get_orchestrator():
+    llm_client = get_llm_client()
+    if settings.entity_resolution_mode == "llm":
+        resolver = LLMEntityResolver(
+            llm_client=llm_client,
+            candidate_limit=settings.entity_resolution_candidate_limit,
+        )
+    else:
+        resolver = EntityResolver()
+
     return ChatOrchestrator(
-        entity_resolver=EntityResolver(),
+        entity_resolver=resolver,
         retrieval_service=RetrievalService(),
-        llm_client=get_llm_client(),
+        llm_client=llm_client,
     )
 
 

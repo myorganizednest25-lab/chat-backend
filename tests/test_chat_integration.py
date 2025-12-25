@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import api
 from app.core.config import settings
-from app.db.models import Base, ChatSession, Entity, EntityDocument
+from app.db.models import Base, ChatSession, Entity, RawDocument
 from app.main import app
 
 
@@ -26,15 +26,24 @@ def test_chat_endpoint_flow(engine):
     app.dependency_overrides[api.routes.get_db] = override_get_db
 
     with SessionLocal() as db:
-        entity = Entity(name="Happy Valley School", entity_type="school", city="Austin", state="TX")
+        entity = Entity(
+            name="Happy Valley School",
+        entity_type="school",
+        city="Austin",
+        state="TX",
+        slug="happy-valley-school",
+            meta={},
+        )
         db.add(entity)
         db.flush()
-        doc = EntityDocument(
+        doc = RawDocument(
             entity_id=entity.id,
             title="Handbook",
             source_url="http://example.com/handbook",
-            content="Students arrive by 8am.",
+            source_type="web",
+            clean_text="Students arrive by 8am.",
             fetched_at=datetime.utcnow(),
+            meta={},
         )
         db.add(doc)
         db.commit()
@@ -46,7 +55,12 @@ def test_chat_endpoint_flow(engine):
 
     chat_resp = client.post(
         "/v1/chat",
-        json={"session_id": session_id, "message": "Tell me about Happy Valley School in Austin"},
+        json={
+            "session_id": session_id,
+            "message": "Tell me about Harrison School in Austin",
+            "city": "Austin",
+            "state": "TX",
+        },
     )
 
     assert chat_resp.status_code == 200

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import EntityDocument
+from app.db.models import RawDocument
 
 
 class RetrievalService:
@@ -19,9 +19,9 @@ class RetrievalService:
         except ValueError:
             return []
         stmt = (
-            select(EntityDocument)
-            .where(EntityDocument.entity_id == entity_uuid)
-            .order_by(EntityDocument.fetched_at.desc().nullslast())
+            select(RawDocument)
+            .where(RawDocument.entity_id == entity_uuid)
+            .order_by(RawDocument.fetched_at.desc().nullslast())
             .limit(settings.max_documents)
         )
         docs = session.scalars(stmt).all()
@@ -31,7 +31,8 @@ class RetrievalService:
                 "entity_id": str(doc.entity_id),
                 "title": doc.title,
                 "source_url": doc.source_url,
-                "content": doc.content,
+                "content": doc.clean_text,
+                "source_type": doc.source_type,
             }
             for doc in docs
         ]

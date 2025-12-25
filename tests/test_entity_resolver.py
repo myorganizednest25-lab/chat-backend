@@ -5,8 +5,22 @@ from app.services.entity_resolver import EntityResolver
 
 
 def test_entity_resolver_matches_best_candidate(db_session):
-    school = Entity(name="Happy Valley School", entity_type="school", city="Austin", state="TX")
-    other = Entity(name="Sunrise Academy", entity_type="school", city="Austin", state="TX")
+    school = Entity(
+        name="Happy Valley School",
+        entity_type="school",
+        city="Austin",
+        state="TX",
+        slug="happy-valley-school",
+        meta={},
+    )
+    other = Entity(
+        name="Sunrise Academy",
+        entity_type="school",
+        city="Austin",
+        state="TX",
+        slug="sunrise-academy",
+        meta={},
+    )
     db_session.add_all([school, other])
     db_session.commit()
 
