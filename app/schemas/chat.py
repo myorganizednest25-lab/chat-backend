@@ -44,6 +44,7 @@ class ChatRequest(BaseModel):
     message: str
     city: Optional[str] = None
     state: Optional[str] = None
+    stream: bool = False
 
 
 class DebugInfo(BaseModel):

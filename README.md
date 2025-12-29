@@ -30,8 +30,13 @@ FastAPI backend that answers parent questions using retrieval over entity-specif
 ## API
 - `POST /v1/sessions` – create a chat session.
 - `GET /v1/sessions/{id}` – fetch session with recent messages.
-- `POST /v1/chat` – send a message `{session_id, user_id?, message, city?, state?}` → returns `{answer, entity?, citations[], debug?}`.
+- `POST /v1/chat` – send a message `{session_id, user_id?, message, city?, state?, stream?}` → returns `{answer, entity?, citations[], debug?}`.
 - `GET /healthz` – liveness probe.
+
+### Streaming
+Add `"stream": true` to the chat request body to receive a Server-Sent Events stream (`text/event-stream`):
+- `data: {"event":"token","data":"..."}` for each token chunk
+- `data: {"event":"done","data":{...final ChatResponse...}}` as the last event
 
 ## Configuration
 Environment variables (pydantic settings):

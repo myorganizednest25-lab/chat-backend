@@ -4,6 +4,7 @@ import time
 from typing import Callable, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -121,6 +122,15 @@ def chat(
     _: None = Depends(rate_limit_dependency),
 ):
     try:
+        if payload.stream:
+            return StreamingResponse(
+                orchestrator.stream_chat(db, payload),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                },
+            )
         return orchestrator.handle_chat(db, payload)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Protocol
+from typing import Iterable, List, Protocol
 
 
 @dataclass
@@ -22,3 +22,7 @@ class LLMClient(Protocol):
     def generate_chat(
         self, messages: List[LLMMessage], model: str, temperature: float, max_tokens: int
     ) -> LLMResponse: ...
+
+    def stream_chat(
+        self, messages: List[LLMMessage], model: str, temperature: float, max_tokens: int
+    ) -> Iterable[str]: ...

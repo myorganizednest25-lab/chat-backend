@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Optional
+import json
+from typing import Generator, List, Optional
 
 import structlog
 from sqlalchemy import select
@@ -19,9 +20,10 @@ log = structlog.get_logger()
 
 
 SYSTEM_PROMPT = (
-    "You are a helpful assistant that answers questions in natural language that is easy to read. "
+    "You are a helpful assistant that answers questions in simple language that is easy to understand. "
     "Be honest about what you know and do not know. "
-    "Use the provided documents when answering. Cite sources using [doc#] after statements when applicable."
+    "Use the provided documents when answering, but feel free to rephrase to make the answer more natural. "
+    "Cite sources using [doc#] after statements when applicable."
 )
 
 
@@ -191,3 +193,70 @@ class ChatOrchestrator:
             citations=citations,
             debug=debug_payload if settings.debug else None,
         )
+
+    def stream_chat(self, db: Session, payload: ChatRequest) -> Generator[str, None, None]:
+        user_message = ChatMessage(
+            session_id=None,
+            role="user",
+            content=payload.message,
+            meta={},
+        )
+
+        resolver_result: EntityResolverResult = self.entity_resolver.resolve(
+            db, payload.message, city=payload.city, state=payload.state
+        )
+        entity = resolver_result.entity
+
+        documents = self.retrieval_service.fetch_documents(
+            db, str(entity.id) if entity else None
+        )
+
+        history: List[ChatMessage] = []
+        llm_messages = self._build_llm_messages(history, documents, user_message)
+
+        citation_map, order = build_citation_map(documents)
+        citations = format_citations(order, citation_map)
+
+        tokens: List[str] = []
+
+        for chunk in self.llm_client.stream_chat(
+            messages=llm_messages,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+        ):
+            tokens.append(chunk)
+            yield f"data: {json.dumps({'event': 'token', 'data': chunk})}\n\n"
+
+        answer = "".join(tokens)
+
+        entity_schema = (
+            EntitySchema(
+                id=str(entity.id),
+                name=entity.name,
+                type=entity.entity_type,
+                city=entity.city,
+                state=entity.state,
+            )
+            if entity
+            else None
+        )
+
+        debug_payload = {
+            "entity_candidates": resolver_result.candidates,
+            "retrieval_count": len(documents),
+            "provider": getattr(self.llm_client, "__class__", type("llm", (), {})).__name__.replace(
+                "Provider", ""
+            ).lower(),
+            "model": settings.llm_model,
+        }
+
+        response = ChatResponse(
+            session_id=payload.session_id,
+            answer=answer,
+            entity=entity_schema,
+            citations=citations,
+            debug=debug_payload if settings.debug else None,
+        )
+
+        yield f"data: {json.dumps({'event': 'done', 'data': response.model_dump(by_alias=True)})}\n\n"

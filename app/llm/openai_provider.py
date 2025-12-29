@@ -33,3 +33,23 @@ class OpenAIProvider(LLMClient):
             model=model,
             usage=usage_dict,
         )
+
+    def stream_chat(
+        self, messages: List[LLMMessage], model: str, temperature: float, max_tokens: int
+    ):
+        payload = [
+            {"role": message.role, "content": message.content} for message in messages
+        ]
+        stream = self.client.chat.completions.create(
+            model=model,
+            messages=payload,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content or ""
+            if delta:
+                yield delta

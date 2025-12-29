@@ -17,3 +17,11 @@ class MockProvider(LLMClient):
             model=model,
             usage={"mock": True, "prompt_tokens": 0, "completion_tokens": len(answer)},
         )
+
+    def stream_chat(
+        self, messages: List[LLMMessage], model: str, temperature: float, max_tokens: int
+    ):
+        last_user = next((m for m in reversed(messages) if m.role == "user"), None)
+        answer = f"(mock answer) {last_user.content if last_user else ''}".strip()
+        for token in answer.split(" "):
+            yield token + " "
