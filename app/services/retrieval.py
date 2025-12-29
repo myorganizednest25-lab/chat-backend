@@ -14,13 +14,9 @@ class RetrievalService:
     def fetch_documents(self, session: Session, entity_id: Optional[str]) -> List[dict]:
         if not entity_id:
             return []
-        try:
-            entity_uuid = uuid.UUID(str(entity_id))
-        except ValueError:
-            return []
         stmt = (
             select(RawDocument)
-            .where(RawDocument.entity_id == entity_uuid)
+            .where(RawDocument.entity_id == entity_id)
             .order_by(RawDocument.fetched_at.desc().nullslast())
             .limit(settings.max_documents)
         )

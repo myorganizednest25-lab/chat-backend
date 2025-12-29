@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Retrieval and session configuration
     history_window: int = 6
-    max_documents: int = 20
+    max_documents: int = 100
 
     # Rate limiting stub
     rate_limit_per_minute: int = 60
