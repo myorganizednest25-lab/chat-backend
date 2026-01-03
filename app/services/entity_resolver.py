@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import json
 from uuid import UUID
@@ -22,9 +22,11 @@ class EntityResolverResult:
         self,
         entity: Optional[Entity],
         candidates: List[Dict],
+        query_type: Optional[str] = None,
     ):
         self.entity = entity
         self.candidates = candidates
+        self.query_type = query_type
 
 
 class EntityResolver:
@@ -77,7 +79,7 @@ class EntityResolver:
             mode="fuzzy",
         )
 
-        return EntityResolverResult(entity=matched_entity, candidates=candidates)
+        return EntityResolverResult(entity=matched_entity, candidates=candidates, query_type=None)
 
 
 class LLMEntityResolver:
@@ -119,12 +121,15 @@ class LLMEntityResolver:
                 best_score=None,
                 mode="llm",
             )
-            return EntityResolverResult(entity=None, candidates=[])
+            return EntityResolverResult(entity=None, candidates=[], query_type=None)
 
         prompt = (
-            "You are selecting the best matching entity for a user's question. The entities are schools, camps or programs for children."
-            "Choose the single best entity id from the provided list, or respond with null if none match. "
-            "Respond strictly as JSON: {\"entity_id\": \"<uuid>\"} or {\"entity_id\": null}."
+            "You are selecting the best matching entity for a user's question AND classifying the query intent.\n"
+            "- Entities are schools, camps, or programs for children.\n"
+            "- Choose the single best entity id from the provided list, or respond with null if none match.\n"
+            "- Also classify the query_type as either \"general\" or \"school_performance_report\". "
+            "Use \"school_performance_report\" when the user is asking for academic results, grades, scores, ratings, or performance reports; otherwise use \"general\".\n"
+            "Respond strictly as JSON: {\"entity_id\": \"<uuid>|null\", \"query_type\": \"general|school_performance_report\"}."
         )
         user_content = json.dumps(
             {
@@ -148,7 +153,7 @@ class LLMEntityResolver:
             raw_response=response.content,
         )
 
-        selected_id = self._parse_entity_id(response.content, candidates)
+        selected_id, query_type = self._parse_response(response.content, candidates)
         matched_entity = None
         if selected_id:
             matched_entity = next((e for e in entities if str(e.id) == selected_id), None)
@@ -167,17 +172,22 @@ class LLMEntityResolver:
             mode="llm",
         )
 
-        return EntityResolverResult(entity=matched_entity, candidates=candidates)
+        return EntityResolverResult(entity=matched_entity, candidates=candidates, query_type=query_type)
 
-    def _parse_entity_id(self, content: str, candidates: List[Dict]) -> Optional[str]:
+    def _parse_response(self, content: str, candidates: List[Dict]) -> Tuple[Optional[str], Optional[str]]:
         try:
             data = json.loads(content)
             entity_id = data.get("entity_id")
+            query_type = data.get("query_type")
             if not entity_id:
-                return None
+                entity_id = None
             # validate uuid and ensure it's in candidates
-            _ = UUID(str(entity_id))
-            candidate_ids = {c["id"] for c in candidates}
-            return str(entity_id) if str(entity_id) in candidate_ids else None
+            if entity_id:
+                _ = UUID(str(entity_id))
+                candidate_ids = {c["id"] for c in candidates}
+                entity_id = str(entity_id) if str(entity_id) in candidate_ids else None
+            if query_type not in {"general", "school_performance_report"}:
+                query_type = None
+            return entity_id, query_type
         except Exception:
-            return None
+            return None, None

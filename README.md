@@ -30,7 +30,7 @@ FastAPI backend that answers parent questions using retrieval over entity-specif
 ## API
 - `POST /v1/sessions` – create a chat session.
 - `GET /v1/sessions/{id}` – fetch session with recent messages.
-- `POST /v1/chat` – send a message `{session_id, user_id?, message, city?, state?, stream?}` → returns `{answer, entity?, citations[], debug?}`.
+- `POST /v1/chat` – send a message `{session_id, user_id?, message, city?, state?, stream?}` → returns `{answer, entity?, citations[], debug?}`. The entity resolver also classifies query intent as `general` vs `school_performance_report` and performs vector search over `chunked_documents` (pgvector) to find the 10 most similar chunks for the entity, then loads their parent `raw_documents` and sends all of those to the LLM. If a top chunk has `source_type="csv"` and a null `entity_id`, the parent `raw_document` is looked up by matching its title (contains) for the resolved entity.
 - `GET /healthz` – liveness probe.
 
 ### Streaming
@@ -43,6 +43,7 @@ Environment variables (pydantic settings):
 - `DATABASE_URL` (default `postgresql+psycopg://chat:chat@localhost:5432/chat`)
 - `LLM_PROVIDER` (`openai`|`mock`, default `mock`)
 - `LLM_MODEL`, `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`
+- `EMBEDDING_MODEL` (default `text-embedding-3-small`)
 - `OPENAI_API_KEY` (required for `openai` provider)
 - `CORS_ORIGINS` (comma-separated)
 - `HISTORY_WINDOW`, `MAX_DOCUMENTS`, `RATE_LIMIT_PER_MINUTE`

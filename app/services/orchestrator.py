@@ -13,7 +13,9 @@ from app.llm.base import LLMClient, LLMMessage
 from app.schemas.chat import ChatRequest, ChatResponse, EntitySchema
 from app.services.entity_resolver import EntityResolver, EntityResolverResult
 from app.services.retrieval import RetrievalService
+from app.services.query_classifier import QueryClassifier
 from app.utils.citations import build_citation_map, format_citations
+from app.llm.embeddings import EmbeddingClient
 
 
 log = structlog.get_logger()
@@ -32,11 +34,15 @@ class ChatOrchestrator:
         self,
         entity_resolver: EntityResolver,
         retrieval_service: RetrievalService,
+        query_classifier: QueryClassifier,
         llm_client: LLMClient,
+        embedding_client: EmbeddingClient,
     ):
         self.entity_resolver = entity_resolver
         self.retrieval_service = retrieval_service
+        self.query_classifier = query_classifier
         self.llm_client = llm_client
+        self.embedding_client = embedding_client
 
     # def _load_session(self, db: Session, session_id: str) -> ChatSession:
     #     session = db.get(ChatSession, session_id)
@@ -107,15 +113,50 @@ class ChatOrchestrator:
             db, payload.message, city=payload.city, state=payload.state
         )
         entity = resolver_result.entity
+        query_type = resolver_result.query_type
+        if self.query_classifier and query_type is None:
+            query_type = self.query_classifier.classify(payload.message)
+        if not query_type:
+            query_type = "general"
 
         log.info("<<<Fetching documents for the entity>>>")
-        documents = self.retrieval_service.fetch_documents(
-            db, str(entity.id) if entity else None
-        )
+        if query_type == "school_performance_report":
+            csv_docs = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                include_source_types=["csv"],
+                limit=5,
+            )
+            non_csv_docs = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                exclude_source_types=["csv"],
+                limit=5,
+            )
+            seen_ids = set()
+            documents = []
+            for doc in csv_docs + non_csv_docs:
+                if doc["id"] in seen_ids:
+                    continue
+                seen_ids.add(doc["id"])
+                documents.append(doc)
+        else:
+            documents = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                limit=10,
+            )
         log.info(
             "retrieval.results",
             # session_id=str(chat_session.id),
             entity_id=str(entity.id) if entity else None,
+            query_type=query_type,
             doc_count=len(documents),
             doc_titles=[doc.get("title") for doc in documents],
         )
@@ -165,6 +206,8 @@ class ChatOrchestrator:
             "retrieval_count": len(documents),
             "provider": response.provider,
             "model": response.model,
+            "query_type": query_type,
+            "selected_titles": [doc.get("title") for doc in documents],
         }
 
         log.info(
@@ -206,10 +249,44 @@ class ChatOrchestrator:
             db, payload.message, city=payload.city, state=payload.state
         )
         entity = resolver_result.entity
+        query_type = resolver_result.query_type
+        if self.query_classifier and query_type is None:
+            query_type = self.query_classifier.classify(payload.message)
+        if not query_type:
+            query_type = "general"
 
-        documents = self.retrieval_service.fetch_documents(
-            db, str(entity.id) if entity else None
-        )
+        if query_type == "school_performance_report":
+            csv_docs = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                include_source_types=["csv"],
+                limit=5,
+            )
+            non_csv_docs = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                exclude_source_types=["csv"],
+                limit=5,
+            )
+            seen_ids = set()
+            documents = []
+            for doc in csv_docs + non_csv_docs:
+                if doc["id"] in seen_ids:
+                    continue
+                seen_ids.add(doc["id"])
+                documents.append(doc)
+        else:
+            documents = self.retrieval_service.fetch_documents_by_similarity(
+                session=db,
+                entity_id=str(entity.id) if entity else None,
+                query=payload.message,
+                embedding_client=self.embedding_client,
+                limit=10,
+            )
 
         history: List[ChatMessage] = []
         llm_messages = self._build_llm_messages(history, documents, user_message)
@@ -249,6 +326,7 @@ class ChatOrchestrator:
                 "Provider", ""
             ).lower(),
             "model": settings.llm_model,
+            "query_type": query_type,
         }
 
         response = ChatResponse(

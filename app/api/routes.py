@@ -13,6 +13,7 @@ from app.db.models import ChatMessage, ChatSession
 from app.db.session import get_session
 from app.llm.mock_provider import MockProvider
 from app.llm.openai_provider import OpenAIProvider
+from app.llm.embeddings import EmbeddingClient, OpenAIEmbeddingClient, MockEmbeddingClient
 from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
@@ -23,6 +24,7 @@ from app.schemas.chat import (
 from app.services.entity_resolver import EntityResolver, LLMEntityResolver
 from app.services.orchestrator import ChatOrchestrator
 from app.services.retrieval import RetrievalService
+from app.services.query_classifier import QueryClassifier
 
 
 router = APIRouter(prefix="/v1")
@@ -65,8 +67,17 @@ def get_llm_client():
     return MockProvider()
 
 
+def get_embedding_client() -> EmbeddingClient:
+    if settings.llm_provider == "openai":
+        if not settings.openai_api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+        return OpenAIEmbeddingClient(api_key=settings.openai_api_key, model=settings.embedding_model)
+    return MockEmbeddingClient()
+
+
 def get_orchestrator():
     llm_client = get_llm_client()
+    embedding_client = get_embedding_client()
     if settings.entity_resolution_mode == "llm":
         resolver = LLMEntityResolver(
             llm_client=llm_client,
@@ -78,7 +89,9 @@ def get_orchestrator():
     return ChatOrchestrator(
         entity_resolver=resolver,
         retrieval_service=RetrievalService(),
+        query_classifier=QueryClassifier(llm_client),
         llm_client=llm_client,
+        embedding_client=embedding_client,
     )
 
 

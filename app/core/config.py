@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gpt-4o-mini")
     llm_temperature: float = 0.2
     llm_max_tokens: int = 400
+    embedding_model: str = Field(default="text-embedding-3-small")
     openai_api_key: Optional[str] = None
 
     cors_origins: List[str] = Field(default_factory=lambda: ["*"])
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
 
     # Retrieval and session configuration
     history_window: int = 6
-    max_documents: int = 100
+    max_documents: int = 1000
 
     # Rate limiting stub
     rate_limit_per_minute: int = 60

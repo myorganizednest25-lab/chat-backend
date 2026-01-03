@@ -52,6 +52,8 @@ class DebugInfo(BaseModel):
     retrieval_count: Optional[int] = None
     provider: Optional[str] = None
     model: Optional[str] = None
+    query_type: Optional[str] = None
+    selected_titles: Optional[List[str]] = None
 
 
 class ChatResponse(BaseModel):
